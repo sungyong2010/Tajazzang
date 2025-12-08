@@ -272,9 +272,13 @@ def check_answer(event=None):
         return os.path.join(os.path.abspath("."), relative_path)
 
     global current_index, correct_count, total_attempts, wrong_list, round_attempts, round_correct
-    # 입력값의 앞뒤 공백만 제거 (대소문자 구분)
-    user_input = entry.get().strip()
-    correct_answer = quiz_data[current_index].strip()
+    # 입력값의 앞뒤 공백 제거 및 특수 공백 정규화
+    user_input = ' '.join(entry.get().split())  # 모든 공백을 일반 공백으로 정규화
+    correct_answer = ' '.join(quiz_data[current_index].split())  # 데이터도 정규화
+
+    # 디버그: 비교 값 로깅
+    logging.info(f"입력: '{user_input}' | 정답: '{correct_answer}'")
+
     # hidden code(=exit_code) 입력 시 즉시 종료
     if exit_code and user_input == exit_code:
         show_custom_message("종료", "숨겨진 코드가 입력되어 프로그램을 종료합니다.")
@@ -601,7 +605,7 @@ def disable_copy_paste(event):
     return "break"
 
 # 엔터키로도 정답 제출 할 수 있도록...
-entry = tk.Entry(root, font=("Arial", 24))
+entry = tk.Entry(root, font=("Arial", 24), width=70)
 entry.pack()
 entry.bind("<Return>", lambda event: check_answer())
 
