@@ -133,7 +133,7 @@ def fetch_quiz_and_message():
     msg_value = None
     hidden_code_value = None
     try:
-        info_sheet = client.open("Shooting").worksheet("info")
+        info_sheet = client.open("Shooting").worksheet("info_tajazzang")
         info_data = info_sheet.get_all_values()
         for row in info_data:
             if len(row) >= 2:
@@ -150,12 +150,11 @@ def fetch_quiz_and_message():
     except Exception as e:
         logging.error(f"info 시트에서 msg/hidden code 값 읽기 실패: {e}")
         message_template = (
-            "우리 준기가 오늘 외운 영어 단어로 언젠가\n"
-            "외국 친구들과 웃으며 이야기하는 모습을 상상해봐.\n\n"
-            "그 순간을 위해 지금 우리가 함께\n"
-            "외국 친구들과 웃으며 이야기하는 모습을 상상해봐.\n\n"
-            "그 순간을 위해 지금 우리가 함께 노력하고 있는 거야.\n"
-            "힘들어도 아빠가 끝까지 함께 할게\n\n" + COMMON_MSG
+            "우리 은기가 오늘 연습하는 타자 실력이\n"
+            "언젠가 빠르고 정확한 타이핑으로 빛날 거야.\n\n"
+            "매일매일 조금씩 연습하면서\n"
+            "컴퓨터를 자유자재로 다루는 멋진 사람이 되는 거지.\n\n"
+            "힘들어도 아빠가 끝까지 함께 할게!\n\n" + COMMON_MSG
         )
 
     return quiz_data, message_template, hidden_code_value
