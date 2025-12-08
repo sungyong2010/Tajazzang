@@ -112,7 +112,8 @@ def fetch_quiz_and_message():
         sheet = client.open("Shooting").worksheet(sheet_name)
     except gspread.exceptions.WorksheetNotFound:
         messagebox.showerror(
-            "시트 없음", f"{today} 날짜의 퀴즈 시트가 존재하지 않습니다."
+            "시트 없음",
+            f"{sheet_name} 시트가 존재하지 않습니다.\n(오늘: {today.strftime('%Y-%m-%d')}, {year}년 {week_num}주차)"
         )
         exit()
 
