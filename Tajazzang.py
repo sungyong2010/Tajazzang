@@ -360,10 +360,12 @@ def check_answer(event=None):
             resource_path("wrong.wav"), winsound.SND_FILENAME | winsound.SND_ASYNC
         )
         correct_answer_text = quiz_data[current_index]
-        if quiz_round < 3:
-            show_custom_message("오답", "오답입니다!")
-        else:
-            show_custom_message("오답", f"오답입니다!\n정답: {correct_answer_text}")
+        show_custom_message("오답", "오답입니다!")
+        # 타자 연습을 하는 것임으로 힌트 제공 안함
+        # if quiz_round < 3:
+        #     show_custom_message("오답", "오답입니다!")
+        # else:
+        #     show_custom_message("오답", f"오답입니다!\n정답: {correct_answer_text}")
 
     current_index += 1
     if current_index >= len(quiz_data):
