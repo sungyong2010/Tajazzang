@@ -113,7 +113,7 @@ def fetch_quiz_and_message():
     except gspread.exceptions.WorksheetNotFound:
         messagebox.showerror(
             "시트 없음",
-            f"{sheet_name} 시트가 존재하지 않습니다.\n(오늘: {today.strftime('%Y-%m-%d')}, {year}년 {week_num}주차)"
+            f"{sheet_name} 시트가 존재하지 않습니다.\n(오늘: {today.strftime('%Y-%m-%d')}, {year}년 {week_num}주차)",
         )
         exit()
 
@@ -242,7 +242,12 @@ def show_custom_message(title, message):
     popup.grab_set()
 
     msg_label = tk.Label(
-        popup, text=message, font=("Arial", 20), fg="white", bg="black", wraplength=350
+        popup,
+        text=message,
+        font=("맑은 고딕", 20),
+        fg="white",
+        bg="black",
+        wraplength=350,
     )
     msg_label.pack(expand=True, pady=20)
 
@@ -251,7 +256,9 @@ def show_custom_message(title, message):
         popup.destroy()
         entry.focus_set()  # 메인 창의 entry에 포커스 돌려주기
 
-    ok_button = tk.Button(popup, text="확인", font=("Arial", 20), command=close_popup)
+    ok_button = tk.Button(
+        popup, text="확인", font=("맑은 고딕", 20), command=close_popup
+    )
     ok_button.pack(pady=20)
 
     # ESC나 Enter키로도 창 닫기
@@ -272,15 +279,59 @@ def check_answer(event=None):
         return os.path.join(os.path.abspath("."), relative_path)
 
     global current_index, correct_count, total_attempts, wrong_list, round_attempts, round_correct
-    # 입력값의 앞뒤 공백 제거 및 특수 공백 정규화
-    user_input = ' '.join(entry.get().split())  # 모든 공백을 일반 공백으로 정규화
-    correct_answer = ' '.join(quiz_data[current_index].split())  # 데이터도 정규화
+    # Text 위젯에서 입력값 가져오기 (1.0부터 end-1c까지, 마지막 개행 제외)
+    raw_input = entry.get("1.0", "end-1c")
+    raw_answer = quiz_data[current_index]
 
-    # 디버그: 비교 값 로깅
-    logging.info(f"입력: '{user_input}' | 정답: '{correct_answer}'")
+    # 강력한 정규화: 모든 공백 제거 후 비교 (공백, 탭, 특수공백 등 모두 제거)
+    import unicodedata
+
+    # 1단계: 유니코드 정규화 (NFD -> NFC)
+    user_input_nfc = unicodedata.normalize("NFC", raw_input)
+    answer_nfc = unicodedata.normalize("NFC", raw_answer)
+
+    # 2단계: 하이픈/대시 문자 정규화 (모든 종류의 하이픈을 일반 하이픈으로 통일)
+    # U+002D: 일반 하이픈-마이너스 (-)
+    # U+2013: En Dash (–)
+    # U+2014: Em Dash (—)
+    # U+2212: 마이너스 기호 (−)
+    # U+FF0D: 전각 하이픈 (－)
+    dash_chars = {
+        "\u2013": "-",  # En Dash
+        "\u2014": "-",  # Em Dash
+        "\u2212": "-",  # Minus Sign
+        "\uff0d": "-",  # Fullwidth Hyphen-Minus
+    }
+    for dash, replacement in dash_chars.items():
+        user_input_nfc = user_input_nfc.replace(dash, replacement)
+        answer_nfc = answer_nfc.replace(dash, replacement)
+
+    # 3단계: 모든 종류의 공백 문자 제거
+    user_input_clean = "".join(user_input_nfc.split())  # 모든 공백 제거
+    answer_clean = "".join(answer_nfc.split())  # 모든 공백 제거
+
+    # 4단계: 대소문자 정규화
+    user_input_normalized = user_input_clean.lower()
+    correct_answer_normalized = answer_clean.lower()
+
+    # 디버그: 상세 로깅
+    logging.info(f"=== 입력 분석 ===")
+    logging.info(f"입력 원본: '{raw_input}' (길이: {len(raw_input)})")
+    logging.info(f"입력 hex: {raw_input.encode('utf-8').hex()}")
+    logging.info(
+        f"입력 정규화: '{user_input_normalized}' (길이: {len(user_input_normalized)})"
+    )
+    logging.info(f"=== 정답 분석 ===")
+    logging.info(f"정답 원본: '{raw_answer}' (길이: {len(raw_answer)})")
+    logging.info(f"정답 hex: {raw_answer.encode('utf-8').hex()}")
+    logging.info(
+        f"정답 정규화: '{correct_answer_normalized}' (길이: {len(correct_answer_normalized)})"
+    )
+    logging.info(f"=== 비교 결과 ===")
+    logging.info(f"일치 여부: {user_input_normalized == correct_answer_normalized}")
 
     # hidden code(=exit_code) 입력 시 즉시 종료
-    if exit_code and user_input == exit_code:
+    if exit_code and user_input_clean == exit_code:
         show_custom_message("종료", "숨겨진 코드가 입력되어 프로그램을 종료합니다.")
         process_monitor.stop_monitoring()
         unblock_windows_key()
@@ -290,7 +341,8 @@ def check_answer(event=None):
     round_attempts += 1
     total_attempts += 1
 
-    if user_input == correct_answer:
+    # 정규화된 값으로 비교 (대소문자 무시, 공백 정규화)
+    if user_input_normalized == correct_answer_normalized:
         round_correct += 1
         correct_count += 1
         # winsound.MessageBeep(winsound.MB_OK)
@@ -373,7 +425,8 @@ def process_quiz_end():
 
 # 문제 업데이트
 def update_question():
-    entry.delete(0, tk.END)
+    # Text 위젯 내용 삭제 (1.0부터 end까지)
+    entry.delete("1.0", tk.END)
     korean_word = quiz_data[current_index]
 
     # 현재 문제 번호와 전체 문제 수
@@ -386,9 +439,8 @@ def update_question():
 
     label.config(text=message)
 
-    # 포커스 강제 설정 (지연 후 재적용 및 독점 포커스)
+    # 포커스 강제 설정 (지연 후 재적용)
     entry.focus_set()
-    # entry.grab_set()  # 입력 필드가 포커스를 독점 => [정답 제출] 버튼 클릭 불가
     root.after(100, lambda: entry.focus_set())
 
 
@@ -597,26 +649,68 @@ if DEBUG_MODE:
     )
     close_button.pack(side="right", padx=10, pady=5)
 
-label = tk.Label(root, text="", font=("Arial", 28), fg="white", bg="black")
+# 한글과 영어를 모두 지원하는 폰트로 라벨 생성
+# 맑은 고딕은 Windows Vista 이상에 기본 설치되어 한글+영어+IME 모두 지원
+label = tk.Label(root, text="", font=("맑은 고딕", 28), fg="white", bg="black")
 label.pack(pady=80)
+
 
 # 복사/붙여넣기 방지 함수
 def disable_copy_paste(event):
     return "break"
 
+
 # 엔터키로도 정답 제출 할 수 있도록...
-entry = tk.Entry(root, font=("Arial", 24), width=70)
-entry.pack()
-entry.bind("<Return>", lambda event: check_answer())
+# Text 위젯은 Entry보다 한글 IME를 더 잘 지원 (조합 중인 글자가 제대로 표시됨)
+entry = tk.Text(
+    root,
+    font=("맑은 고딕", 24),
+    height=1,
+    width=70,
+    relief="solid",
+    bd=2,
+    insertwidth=3,
+    wrap="none",
+    padx=8,
+    pady=8,  # 내부 여백
+    highlightthickness=0,
+)  # 포커스 테두리 제거
+entry.pack(pady=20, padx=20)
+
+# IME 조합 윈도우 최적화 시도 (tkinter의 한계로 완벽하지 않음)
+try:
+    entry.configure(insertunfocussed="none")
+except:
+    pass
+
+
+# 한글 조합 완성을 위한 약간의 지연 추가
+def delayed_check_answer(event=None):
+    # 한글 IME 조합이 완료될 시간을 주기 위해 100ms 지연
+    root.after(100, lambda: check_answer())
+    return "break"  # 기본 Enter 동작 방지 및 줄바꿈 방지
+
+
+entry.bind("<Return>", delayed_check_answer)
+entry.bind("<KP_Enter>", delayed_check_answer)  # 숫자패드 Enter도 지원
 
 # 복사/붙여넣기 관련 단축키 차단
-entry.bind('<Control-c>', disable_copy_paste)  # 복사 차단
-entry.bind('<Control-v>', disable_copy_paste)  # 붙여넣기 차단
-entry.bind('<Control-x>', disable_copy_paste)  # 잘라내기 차단
-entry.bind('<Control-a>', disable_copy_paste)  # 전체 선택 차단
+entry.bind("<Control-c>", disable_copy_paste)  # 복사 차단
+entry.bind("<Control-v>", disable_copy_paste)  # 붙여넣기 차단
+entry.bind("<Control-x>", disable_copy_paste)  # 잘라내기 차단
+entry.bind("<Control-a>", disable_copy_paste)  # 전체 선택 차단
+
 
 # 버튼을 클릭해서 정답 제출 할 수 있도록...
-button = tk.Button(root, text="정답 제출", font=("Arial", 20), command=check_answer)
+# 버튼 클릭 시에도 한글 조합 완성을 위한 지연 적용
+def button_check_answer():
+    entry.focus_set()  # 포커스를 Entry로 이동하여 IME 조합 완성
+    root.after(150, lambda: check_answer())
+
+
+button = tk.Button(
+    root, text="정답 제출", font=("맑은 고딕", 20), command=button_check_answer
+)
 button.pack(pady=30)
 
 # Entry 필드에 자동 포커스 설정
@@ -636,23 +730,22 @@ else:
     # DEBUG 모드에서는 정상적으로 창 닫기 허용
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
+
 # ✅ 시간 체크 함수 추가
 def check_time_restriction():
     """새벽 12시부터 오전 8시 사이인지 체크"""
     current_time = datetime.now()
     current_hour = current_time.hour
-    
+
     # 0시(자정)부터 9시 전까지는 실행 불가
     if 0 <= current_hour < 8:
         return False
     return True
 
+
 if __name__ == "__main__":
     if not check_time_restriction():
-        show_custom_message(
-            "Early Bird Bonus", 
-            "일찍 일어나는 새는 벌레를 잡는다!\n\n"
-        )
+        show_custom_message("Early Bird Bonus", "일찍 일어나는 새는 벌레를 잡는다!\n\n")
         unblock_windows_key()
         root.destroy()
         sys.exit()
